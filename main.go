@@ -35,7 +35,7 @@ var hub = Hub{
 
 var db *sql.DB
 
-// Inicializar la base de datos PostgreSQL (Neon)
+// Inicializar la base de datos
 func initDB() {
 	var err error
 	connStr := os.Getenv("DATABASE_URL")
@@ -45,7 +45,7 @@ func initDB() {
 
 	db, err = sql.Open("postgres", connStr)
 	if err != nil {
-		log.Fatal("Error al conectar con PostgreSQL (Neon):", err)
+		log.Fatal("Error al conectar con la base de datos:", err)
 	}
 
 	if err = db.Ping(); err != nil {
@@ -62,9 +62,9 @@ func initDB() {
 	`
 	_, err = db.Exec(query)
 	if err != nil {
-		log.Fatal("Error al crear la tabla offline_messages en Postgres:", err)
+		log.Fatal("Error al crear la tabla offline_messages en db:", err)
 	}
-	log.Println("[✔] Base de datos PostgreSQL (NEON) conectada e inicializada correctamente ")
+	log.Println("[✔] Base de datos conectada e inicializada correctamente ")
 }
 
 func handleConnections(w http.ResponseWriter, r *http.Request) {
