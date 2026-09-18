@@ -6,7 +6,9 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"string"
 	"sync"
+	"time"
 
 	"github.com/gorilla/websocket"
 	_ "github.com/lib/pq"
@@ -74,6 +76,8 @@ func handleConnections(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "[!] El parámetro 'username' es obligatorio", http.StatusBadRequest)
 		return
 	}
+	// Normalizar a minusculas
+	username := strings.ToLower(strings.TrimSpace(rawUsername))
 
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
@@ -90,6 +94,10 @@ func handleConnections(w http.ResponseWriter, r *http.Request) {
 	hub.mu.Unlock()
 
 	log.Printf("[+] Usuario Conectado ")
+
+	// Pausa para asegurar que el cliente terminó de abrir el socket y está listo.
+	time.Sleep(100 * time.Millisecond)
+	deliverOfflineMessages(username, conn)
 
 	deliverOfflineMessages(username, conn)
 
