@@ -38,7 +38,6 @@ var db *sql.DB
 // Inicializar la base de datos PostgreSQL (Neon)
 func initDB() {
 	var err error
-	// Neon te proporcionará esta URL (ej: postgres://user:pass@ep-xyz.neon.tech/neondb?sslmode=require)
 	connStr := os.Getenv("DATABASE_URL")
 	if connStr == "" {
 		log.Fatal("[!] Error: La variable de entorno DATABASE_URL no está configurada.")
@@ -49,12 +48,10 @@ func initDB() {
 		log.Fatal("Error al conectar con PostgreSQL (Neon):", err)
 	}
 
-	// Verificar conexión
 	if err = db.Ping(); err != nil {
 		log.Fatal("Error al hacer ping a la base de datos:", err)
 	}
 
-	// En PostgreSQL usamos SERIAL en lugar de AUTOINCREMENT
 	query := `
 	CREATE TABLE IF NOT EXISTS offline_messages (
 		id SERIAL PRIMARY KEY,
@@ -67,16 +64,16 @@ func initDB() {
 	if err != nil {
 		log.Fatal("Error al crear la tabla offline_messages en Postgres:", err)
 	}
-	log.Println("[✔] Base de datos PostgreSQL (Neon) conectada e inicializada correctamente ")
+	log.Println("[✔] Base de datos PostgreSQL (NEON) conectada e inicializada correctamente ")
 }
 
 func handleConnections(w http.ResponseWriter, r *http.Request) {
-	username := r.URL.Query().Get("username")
-	if username == "" {
+	rawUsername := r.URL.Query().Get("username")
+	if rawUsername == "" {
 		http.Error(w, "[!] El parámetro 'username' es obligatorio", http.StatusBadRequest)
 		return
 	}
-	// Normalizar a minusculas
+	// Normalizar a minúsculas
 	username := strings.ToLower(strings.TrimSpace(rawUsername))
 
 	conn, err := upgrader.Upgrade(w, r, nil)
@@ -93,12 +90,10 @@ func handleConnections(w http.ResponseWriter, r *http.Request) {
 	hub.clients[username] = conn
 	hub.mu.Unlock()
 
-	log.Printf("[+] Usuario Conectado ")
+	log.Printf("[+] Usuario Conectado")
 
-	// Pausa para asegurar que el cliente terminó de abrir el socket y está listo.
+	// Pausa para asegurar que el socket está listo y entregar mensajes pendientes
 	time.Sleep(100 * time.Millisecond)
-	deliverOfflineMessages(username, conn)
-
 	deliverOfflineMessages(username, conn)
 
 	defer func() {
@@ -107,7 +102,7 @@ func handleConnections(w http.ResponseWriter, r *http.Request) {
 			delete(hub.clients, username)
 		}
 		hub.mu.Unlock()
-		log.Printf("[-] Usuario Desconectado ")
+		log.Printf("[-] Usuario Desconectado")
 	}()
 
 	for {
@@ -123,6 +118,7 @@ func handleConnections(w http.ResponseWriter, r *http.Request) {
 		}
 
 		packet.From = username
+		packet.To = strings.ToLower(strings.TrimSpace(packet.To)) // Normalizar destinatario
 
 		hub.mu.Lock()
 		targetConn, exists := hub.clients[packet.To]
@@ -135,7 +131,7 @@ func handleConnections(w http.ResponseWriter, r *http.Request) {
 			}
 		} else {
 			storeOfflineMessage(packet.To, packet.From, packet.Content)
-			log.Printf("[OFFLINE] Destinatario no disponible. Mensaje en cola ...")
+			log.Printf("[OFFLINE] Destinatario no disponible. Mensaje en cola...")
 		}
 	}
 }
@@ -197,7 +193,7 @@ func main() {
 		port = "8080"
 	}
 
-	log.Println("::: Aegis Server ::: corriendo en el puerto :" + port)
+	log.Println("::: Aegis Server ::: ejecutando en el puerto :" + port)
 	err := http.ListenAndServe(":"+port, nil)
 	if err != nil {
 		log.Fatal("Error en el servidor: ", err)
